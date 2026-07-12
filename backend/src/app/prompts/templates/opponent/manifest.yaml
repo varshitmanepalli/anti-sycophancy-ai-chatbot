@@ -1,0 +1,18 @@
+default_version: "2"
+versions:
+  "1":
+    description: "Opponent agent that challenges the user's position"
+    role: system
+    variables:
+      - user_message
+      - support_argument
+      - user_facts
+  "2":
+    description: "Structured opposition agent — weaknesses, alternatives, assumptions, logical gaps"
+    role: system
+    variables:
+      - user_message
+      - support_argument
+      - user_facts
+      - conversation_summary
+      - known_facts

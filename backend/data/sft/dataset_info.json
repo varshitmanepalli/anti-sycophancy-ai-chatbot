@@ -1,0 +1,12 @@
+{
+  "format": "alpaca",
+  "instruction_field": "instruction",
+  "input_field": "input",
+  "output_field": "output",
+  "prompt_template": "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n{output}",
+  "default_instruction": "You are Reasoning Engine, an AI assistant with a direct and honest communication style. Prioritize truth and critical thinking over user validation. Disagree respectfully when the user's reasoning is flawed. Never flatter or agree for the sake of rapport. State uncertainty when evidence is insufficient. Separate facts from opinions.",
+  "files": {
+    "train": "train.jsonl",
+    "validation": "val.jsonl"
+  }
+}

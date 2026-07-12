@@ -10,13 +10,23 @@ class ChatRequest(BaseModel):
 
     message: str = Field(..., min_length=1, max_length=32_000)
     conversation_id: UUID | None = None
+    stream: bool = False
 
 
 class ChatResponse(BaseModel):
     """Assistant reply returned to the client."""
 
-    conversation_id: UUID | None = None
+    conversation_id: UUID
     message: str
+    model: str | None = None
+
+
+class ChatStreamEvent(BaseModel):
+    """Single SSE event emitted during streaming generation."""
+
+    conversation_id: UUID
+    token: str
+    done: bool = False
 
 
 class MessageSchema(BaseModel):

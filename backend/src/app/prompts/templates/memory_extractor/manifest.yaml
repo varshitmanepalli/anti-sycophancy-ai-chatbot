@@ -1,0 +1,8 @@
+default_version: "1"
+versions:
+  "1":
+    description: "Extract long-term user profile information"
+    role: user
+    variables:
+      - message
+      - context

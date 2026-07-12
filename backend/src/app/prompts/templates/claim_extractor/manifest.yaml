@@ -1,0 +1,8 @@
+default_version: "1"
+versions:
+  "1":
+    description: "Structured claim extraction with assumptions and evidence gaps"
+    role: user
+    variables:
+      - message
+      - context

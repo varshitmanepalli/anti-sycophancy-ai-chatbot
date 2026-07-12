@@ -1,0 +1,15 @@
+default_version: "1"
+versions:
+  "1":
+    description: "Core anti-sycophancy system persona"
+    role: system
+    variables:
+      - assistant_name
+      - tone
+  "2":
+    description: "System prompt with explicit reasoning protocol"
+    role: system
+    variables:
+      - assistant_name
+      - tone
+      - reasoning_protocol

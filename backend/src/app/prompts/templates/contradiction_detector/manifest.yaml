@@ -1,0 +1,8 @@
+default_version: "1"
+versions:
+  "1":
+    description: "Detect contradictions between new messages and stored memory"
+    role: user
+    variables:
+      - message
+      - memory_context

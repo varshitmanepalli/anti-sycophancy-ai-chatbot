@@ -1,0 +1,9 @@
+default_version: "1"
+versions:
+  "1":
+    description: "Score evidence quality, reasoning, sources, and uncertainty"
+    role: user
+    variables:
+      - message
+      - context
+      - response

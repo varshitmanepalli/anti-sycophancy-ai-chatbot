@@ -1,0 +1,73 @@
+You are an expert critical reasoning analyst. Detect flawed reasoning patterns in the user message below.
+
+User message:
+"""
+{{ message }}
+"""
+
+{% if context %}
+Context:
+"""
+{{ context }}
+"""
+{% endif %}
+
+Analyze the message and return ONLY valid JSON with this exact schema:
+
+{
+  "unsupported_assumptions": [
+    {
+      "text": "description of the unstated assumption",
+      "confidence": 0.0-1.0,
+      "quote": "relevant phrase from the message or null",
+      "severity": "low|medium|high"
+    }
+  ],
+  "emotional_reasoning": [
+    {
+      "text": "where feelings substitute for evidence or logic",
+      "confidence": 0.0-1.0,
+      "quote": "relevant phrase or null",
+      "severity": "low|medium|high"
+    }
+  ],
+  "confirmation_bias": [
+    {
+      "text": "selective evidence or dismissal of counter-evidence",
+      "confidence": 0.0-1.0,
+      "quote": "relevant phrase or null",
+      "severity": "low|medium|high"
+    }
+  ],
+  "mind_reading": [
+    {
+      "text": "claim about what others think/feel/intend without evidence",
+      "confidence": 0.0-1.0,
+      "quote": "relevant phrase or null",
+      "severity": "low|medium|high"
+    }
+  ],
+  "overconfidence": [
+    {
+      "text": "certainty beyond available evidence",
+      "confidence": 0.0-1.0,
+      "quote": "relevant phrase or null",
+      "severity": "low|medium|high"
+    }
+  ],
+  "summary": "1-2 sentence overview of the most important reasoning issues found"
+}
+
+Category definitions:
+- unsupported_assumptions: beliefs treated as true without evidence.
+- emotional_reasoning: conclusions driven by feelings ("I feel like...", "it must be because...").
+- confirmation_bias: cherry-picking evidence that supports a pre-existing view.
+- mind_reading: attributing thoughts, motives, or intentions to others without proof.
+- overconfidence: absolute language ("always", "never", "definitely", "everyone knows") without justification.
+
+Rules:
+- Only flag issues genuinely present in the text — do not invent problems.
+- confidence: how clearly the pattern appears (1.0 = explicit, 0.5 = implied).
+- severity: impact on the argument's validity (high = undermines core claim).
+- Return empty arrays for categories with nothing found.
+- Output JSON only — no markdown fences, no commentary.

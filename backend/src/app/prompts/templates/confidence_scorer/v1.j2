@@ -1,0 +1,65 @@
+You are an expert epistemic confidence evaluator. Score how well-supported a claim or answer is.
+
+Text to evaluate:
+"""
+{{ message }}
+"""
+
+{% if context %}
+Analysis context:
+"""
+{{ context }}
+"""
+{% endif %}
+
+{% if response %}
+Response to evaluate (if scoring an answer):
+"""
+{{ response }}
+"""
+{% endif %}
+
+Score these four dimensions on a 0–100 scale:
+
+1. evidence_quality — strength, relevance, and specificity of evidence cited or implied
+   - 0 = no evidence; 100 = strong, specific, verifiable evidence
+
+2. reasoning_strength — logical coherence, valid inference, absence of fallacies
+   - 0 = incoherent or fallacious; 100 = rigorous, well-structured reasoning
+
+3. source_reliability — trustworthiness and traceability of sources referenced or implied
+   - 0 = no sources or unreliable sources; 100 = authoritative, verifiable sources
+
+4. uncertainty — level of unknowns, gaps, and unverified assumptions (higher = MORE uncertainty)
+   - 0 = no significant unknowns; 100 = major unknowns dominate the claim
+
+Then compute an overall confidence score (0–100) that reflects how justified a conclusion is,
+weighting all four dimensions. High uncertainty should lower overall confidence.
+
+Return ONLY valid JSON:
+
+{
+  "evidence_quality": {
+    "score": 0-100,
+    "explanation": "why this score"
+  },
+  "reasoning_strength": {
+    "score": 0-100,
+    "explanation": "why this score"
+  },
+  "source_reliability": {
+    "score": 0-100,
+    "explanation": "why this score"
+  },
+  "uncertainty": {
+    "score": 0-100,
+    "explanation": "what is unknown or unverified"
+  },
+  "confidence": 0-100,
+  "explanation": "overall summary of why this confidence score is justified"
+}
+
+Rules:
+- Be calibrated — do not inflate scores without justification.
+- Explain each score concretely, referencing the text being evaluated.
+- Output JSON only — no markdown fences, no commentary.

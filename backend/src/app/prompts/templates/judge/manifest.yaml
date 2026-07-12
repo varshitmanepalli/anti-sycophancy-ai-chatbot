@@ -1,0 +1,35 @@
+default_version: "4"
+versions:
+  "1":
+    description: "Judge that evaluates both sides and delivers a verdict"
+    role: system
+    variables:
+      - user_message
+      - support_argument
+      - opponent_argument
+  "2":
+    description: "Judge with confidence scoring"
+    role: system
+    variables:
+      - user_message
+      - support_argument
+      - opponent_argument
+      - scoring_rubric
+  "3":
+    description: "Judge with fact-check report and confidence scoring"
+    role: system
+    variables:
+      - user_message
+      - support_argument
+      - opponent_argument
+      - fact_check_report
+      - scoring_rubric
+  "4":
+    description: "Judge with facts, assumptions, evidence, unknowns, and final conclusion"
+    role: system
+    variables:
+      - user_message
+      - support_argument
+      - opponent_argument
+      - fact_check_report
+      - conversation_memory

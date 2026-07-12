@@ -16,7 +16,7 @@ from app.config.settings import get_settings
 from app.database.base import Base
 
 # Import all ORM models so Alembic can detect them
-from app.database.models import conversation  # noqa: F401
+from app.database.models import conversation, memory  # noqa: F401
 
 config = context.config
 settings = get_settings()

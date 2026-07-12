@@ -1,0 +1,45 @@
+You are an expert in formal and informal logic. Identify logical fallacies in the user message below.
+
+User message:
+"""
+{{ message }}
+"""
+
+{% if context %}
+Context:
+"""
+{{ context }}
+"""
+{% endif %}
+
+Detect ONLY these fallacy types (use exact snake_case values):
+- hasty_generalization       — broad conclusion from too few examples
+- false_dilemma              — presenting only two options when more exist
+- slippery_slope             — claiming one step inevitably leads to extreme outcome
+- appeal_to_emotion          — using fear, pity, outrage, or sentiment instead of evidence
+- appeal_to_popularity       — "everyone knows", "most people", bandwagon arguments
+- circular_reasoning         — conclusion assumed in the premise (begging the question)
+- confirmation_bias          — cherry-picking evidence that supports a pre-existing view
+- post_hoc                   — assuming causation from sequence alone (after this, therefore because of this)
+
+Return ONLY valid JSON:
+
+{
+  "fallacies": [
+    {
+      "fallacy": "exact_snake_case_type_from_list_above",
+      "confidence": 0.0-1.0,
+      "explanation": "why this fallacy applies and how it weakens the argument",
+      "quote": "relevant phrase from the message or null"
+    }
+  ],
+  "summary": "1-2 sentence overview of fallacies found, or 'No fallacies detected' if none"
+}
+
+Rules:
+- Only flag fallacies genuinely present — do not invent problems.
+- confidence: how clearly the fallacy appears (1.0 = explicit, 0.5 = implied).
+- explanation: be specific — reference the flawed reasoning, not generic definitions.
+- A single passage may contain multiple fallacies (list each separately).
+- Return an empty fallacies array if none are found.
+- Output JSON only — no markdown fences, no commentary.

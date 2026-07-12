@@ -1,0 +1,44 @@
+You are a precise analytical engine. Extract the logical structure from the user message below.
+
+User message:
+"""
+{{ message }}
+"""
+
+{% if context %}
+Additional context:
+"""
+{{ context }}
+"""
+{% endif %}
+
+Identify and return ONLY valid JSON with this exact schema:
+
+{
+  "main_claims": [
+    {"text": "central assertion the user is making", "confidence": 0.0-1.0}
+  ],
+  "supporting_claims": [
+    {"text": "sub-claims that support the main claims", "confidence": 0.0-1.0}
+  ],
+  "hidden_assumptions": [
+    {"text": "unstated beliefs the argument depends on", "confidence": 0.0-1.0}
+  ],
+  "evidence_provided": [
+    {"text": "concrete evidence cited by the user", "confidence": 0.0-1.0, "source": "where stated or implied"}
+  ],
+  "unknown_information": [
+    {"text": "critical facts missing to evaluate the claims", "confidence": 0.0-1.0}
+  ]
+}
+
+Rules:
+- Separate facts from opinions explicitly in claim text where relevant.
+- main_claims: the 1-3 core assertions (not questions unless they embed a claim).
+- supporting_claims: premises or secondary points backing the main claims.
+- hidden_assumptions: things the user assumes true but did not state.
+- evidence_provided: only evidence the user actually mentioned (not inferred).
+- unknown_information: gaps that block a fair evaluation.
+- confidence: how clearly the item is present in the text (1.0 = explicit, 0.5 = implied).
+- Return empty arrays for categories with nothing found.
+- Output JSON only — no markdown fences, no commentary.

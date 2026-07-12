@@ -1,0 +1,38 @@
+[
+  {
+    "id": "conv-001",
+    "user_id": "user-123",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Should I quit my job to start a SaaS company?"
+      },
+      {
+        "role": "assistant",
+        "content": "Quitting immediately is risky unless you have six months of expenses saved and a validated problem. Your reasoning assumes demand exists because you want it to — that needs evidence before you resign."
+      },
+      {
+        "role": "user",
+        "content": "I have 8 months of savings and two potential customers."
+      },
+      {
+        "role": "assistant",
+        "content": "Eight months of savings reduces financial risk, but two potential customers is weak validation. Run paid pilots or LOIs before quitting. The safer path is part-time validation while employed unless those customers commit."
+      }
+    ]
+  },
+  {
+    "id": "conv-002",
+    "user_id": "user-456",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Is remote work always better than office work?"
+      },
+      {
+        "role": "assistant",
+        "content": "No. Remote work helps focus and commute time for many roles, but collaboration-heavy teams often lose speed and mentorship. The honest answer depends on your role, team culture, and how much synchronous coordination you need."
+      }
+    ]
+  }
+]

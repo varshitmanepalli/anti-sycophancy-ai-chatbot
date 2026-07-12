@@ -1,0 +1,14 @@
+default_version: "2"
+versions:
+  "1":
+    description: "Detects hidden assumptions in statements (prose output)"
+    role: system
+    variables:
+      - statement
+      - context
+  "2":
+    description: "Structured detection of assumptions, biases, and reasoning flaws"
+    role: user
+    variables:
+      - message
+      - context

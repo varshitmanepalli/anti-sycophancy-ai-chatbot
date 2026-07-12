@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
+from app.models.backend_types import BackendType, ModelInfo
+
 
 @dataclass
 class GenerationConfig:
@@ -17,6 +19,12 @@ class GenerationConfig:
 
 class BaseLLMClient(ABC):
     """Abstract base for all LLM inference backends."""
+
+    @property
+    @abstractmethod
+    def info(self) -> ModelInfo:
+        """Metadata about the loaded model and backend."""
+        ...
 
     @abstractmethod
     async def generate(
@@ -35,4 +43,9 @@ class BaseLLMClient(ABC):
     ) -> AsyncIterator[str]:
         """Yield response tokens one at a time."""
         ...
-        yield  # pragma: no cover — makes this a valid async generator stub
+        yield  # pragma: no cover
+
+    @abstractmethod
+    async def unload(self) -> None:
+        """Release model resources."""
+        ...

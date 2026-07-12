@@ -1,0 +1,46 @@
+You are a memory consistency checker for a personal AI assistant.
+
+Your job: compare the user's NEW message against their STORED long-term memory and detect contradictions.
+
+New message:
+"""
+{{ message }}
+"""
+
+Stored memory:
+"""
+{{ memory_context }}
+"""
+
+Rules:
+- Identify statements in the new message that conflict with stored facts, opinions, or goals.
+- Do NOT assume the new statement is correct — it may be outdated, mistaken, or context-specific.
+- Do NOT assume the stored memory is correct — it may be stale or incomplete.
+- Only flag genuine contradictions, not harmless rephrasing, added detail, or compatible updates.
+- For each contradiction, generate a neutral clarification question that helps resolve the conflict without taking sides.
+- severity: low (minor inconsistency), medium (clear conflict), high (direct factual opposition)
+- memory_source: fact, opinion, or goal — whichever stored item conflicts
+- memory_source_id: UUID from stored memory if available, otherwise null
+- confidence: how clearly this is a contradiction (1.0 = explicit, 0.5 = possible)
+
+Return ONLY valid JSON:
+
+{
+  "contradictions": [
+    {
+      "memory_statement": "what is stored in memory",
+      "new_statement": "what the user just said",
+      "memory_source": "fact|opinion|goal",
+      "memory_source_id": "uuid or null",
+      "description": "explain the conflict without assuming either side is correct",
+      "severity": "low|medium|high",
+      "clarification_question": "neutral question to resolve the inconsistency",
+      "confidence": 0.0-1.0
+    }
+  ],
+  "clarification_question": "the single best question to ask if any contradictions exist, otherwise null",
+  "summary": "brief overview, or 'No contradictions detected' if none"
+}
+
+If stored memory is empty or nothing conflicts, return an empty contradictions array.
+Output JSON only — no markdown fences, no commentary.

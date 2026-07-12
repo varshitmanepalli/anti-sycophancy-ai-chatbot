@@ -1,25 +1,19 @@
 """Model client factory.
 
-Selects the appropriate LLM backend (vLLM or Transformers) based on
-application settings.
+Delegates to ``ModelManager`` for backend selection and lifecycle.
 """
 
 from app.config.settings import Settings
 from app.models.base import BaseLLMClient
-from app.models.transformers_client import TransformersClient
-from app.models.vllm_client import VLLMClient
+from app.models.model_manager import ModelManager
 
 
-def create_llm_client(settings: Settings) -> BaseLLMClient:
-    """Instantiate the configured LLM inference backend."""
-    if settings.llm_backend == "vllm":
-        return VLLMClient(
-            base_url=settings.vllm_base_url,
-            model_name=settings.model_name,
-        )
-    if settings.llm_backend == "transformers":
-        return TransformersClient(
-            model_id=settings.model_name,
-            device=settings.model_device,
-        )
-    raise ValueError(f"Unknown LLM backend: {settings.llm_backend!r}")
+async def create_llm_client(settings: Settings | None = None) -> BaseLLMClient:
+    """Return the active backend from the ``ModelManager`` singleton.
+
+    Loads the model on first call if not already loaded.
+    """
+    manager = await ModelManager.get_instance(settings)
+    if not manager.is_loaded:
+        await manager.load()
+    return manager.get_active_backend()

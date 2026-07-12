@@ -21,3 +21,7 @@ Thumbs.db
 
 # Docker
 *.log
+
+.venv
+.cursor
+backend/.venv

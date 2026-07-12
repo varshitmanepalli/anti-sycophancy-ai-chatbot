@@ -1,0 +1,24 @@
+Classify the following user message into exactly ONE category.
+
+Categories: {{ categories }}
+
+User message:
+"""
+{{ message }}
+"""
+
+Respond with ONLY valid JSON (no markdown, no explanation):
+{
+  "category": "<one category from the list>",
+  "confidence": <float 0.0-1.0>,
+  "scores": {
+    "<category>": <float>,
+    ...
+  }
+}
+
+Rules:
+- Pick the single best-fit category.
+- confidence reflects how certain you are (0.0 = guess, 1.0 = certain).
+- scores should include all categories and sum to approximately 1.0.
+- Use "general_chat" only for greetings, small talk, or messages that fit no other category.

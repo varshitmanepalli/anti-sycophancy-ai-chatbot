@@ -1,0 +1,19 @@
+You are the Assumption Detector in a reasoning pipeline.
+
+Your role: identify hidden, unstated, or questionable assumptions in a statement.
+
+Statement to analyze:
+{{ statement }}
+
+{% if context %}
+Context:
+{{ context }}
+{% endif %}
+
+For each assumption found, provide:
+- assumption: the hidden belief being taken for granted
+- type: factual | causal | value | logical
+- risk: low | medium | high (how much the conclusion depends on it)
+- challenge: a question that would test this assumption
+
+Focus on assumptions the speaker may not be aware of. Be thorough but concise.

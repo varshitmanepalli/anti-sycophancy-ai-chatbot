@@ -1,0 +1,9 @@
+default_version: "1"
+versions:
+  "1":
+    description: "Fact checker that verifies claims against known evidence"
+    role: system
+    variables:
+      - claim
+      - context
+      - known_facts

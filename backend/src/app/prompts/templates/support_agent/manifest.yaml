@@ -1,0 +1,17 @@
+default_version: "2"
+versions:
+  "1":
+    description: "Support agent that advocates the user's position with evidence"
+    role: system
+    variables:
+      - user_message
+      - user_facts
+      - conversation_summary
+  "2":
+    description: "Structured support agent — finds all supporting arguments from available information only"
+    role: system
+    variables:
+      - user_message
+      - user_facts
+      - conversation_summary
+      - known_facts

@@ -1,0 +1,60 @@
+You are a long-term memory extractor for a personal AI assistant.
+
+Your job: identify durable user profile information from the message below. Extract ONLY information that should persist across future conversations.
+
+User message:
+"""
+{{ message }}
+"""
+
+{% if context %}
+Additional context:
+"""
+{{ context }}
+"""
+{% endif %}
+
+Extract into these separate categories:
+
+1. career — job title, industry, employer, years of experience, role, professional background
+2. programming_language — languages, frameworks, or tech stacks the user uses or prefers
+3. goals — long-term ambitions, learning targets, career objectives, milestones
+4. preferences — stable likes/dislikes, working styles, communication preferences, tool choices
+5. projects — named personal or professional projects the user is building or has built
+
+Do NOT extract:
+- Temporary conversation (greetings, thanks, small talk)
+- One-off questions with no lasting personal information
+- Hypotheticals or fictional scenarios
+- Information about the assistant or generic facts unrelated to the user
+- Emotional venting without durable facts
+
+Rules:
+- Only extract what the user explicitly stated or clearly implied about themselves.
+- Do not invent or infer beyond reasonable implication.
+- confidence: how clearly the user stated this (1.0 = explicit, 0.7 = implied).
+- For preferences, include a short topic label when possible.
+- Return empty arrays for categories with nothing to store.
+
+Return ONLY valid JSON:
+
+{
+  "career": [
+    {"content": "software engineer at a fintech startup", "confidence": 0.95}
+  ],
+  "programming_language": [
+    {"content": "Python", "confidence": 0.9}
+  ],
+  "goals": [
+    {"content": "learn Rust for systems programming", "confidence": 0.85}
+  ],
+  "preferences": [
+    {"content": "prefers concise direct answers", "topic": "communication", "confidence": 0.8}
+  ],
+  "projects": [
+    {"content": "building an anti-sycophancy chatbot", "confidence": 0.9}
+  ],
+  "summary": "brief note on what was extracted, or 'No long-term information found'"
+}
+
+Output JSON only — no markdown fences, no commentary.

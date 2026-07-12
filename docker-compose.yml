@@ -24,7 +24,7 @@ services:
   vllm:
     image: vllm/vllm-openai:latest
     command: >
-      --model meta-llama/Llama-3.1-8B-Instruct
+      --model Qwen/Qwen3-14B
       --host 0.0.0.0
       --port 8001
     ports:
@@ -51,7 +51,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/chatbot
       VLLM_BASE_URL: http://vllm:8001/v1
       LLM_BACKEND: vllm
-      MODEL_NAME: meta-llama/Llama-3.1-8B-Instruct
+      MODEL_NAME: Qwen/Qwen3-14B
       LOG_FORMAT: text
       DEBUG: "true"
     depends_on:
