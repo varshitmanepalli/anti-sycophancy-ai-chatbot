@@ -64,6 +64,17 @@ ModelManagerDep = Annotated[ModelManager, Depends(get_model_manager)]
 
 
 # ---------------------------------------------------------------------------
+# Prompt manager (must be defined before services that annotate with it)
+# ---------------------------------------------------------------------------
+
+async def get_prompt_manager_dep() -> PromptManager:
+    return get_prompt_manager()
+
+
+PromptManagerDep = Annotated[PromptManager, Depends(get_prompt_manager_dep)]
+
+
+# ---------------------------------------------------------------------------
 # Services
 # ---------------------------------------------------------------------------
 
@@ -132,10 +143,6 @@ async def get_memory_repository(session: DbSession) -> SQLMemoryRepository:
     return SQLMemoryRepository(session)
 
 
-async def get_prompt_manager_dep() -> PromptManager:
-    return get_prompt_manager()
-
-
 async def get_input_classifier(
     settings: SettingsDep,
     model_manager: ModelManagerDep,
@@ -152,7 +159,8 @@ HealthServiceDep = Annotated[HealthService, Depends(get_health_service)]
 ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
 ChatPipelineDep = Annotated[ChatPipeline, Depends(get_chat_pipeline)]
 MemoryRepositoryDep = Annotated[SQLMemoryRepository, Depends(get_memory_repository)]
-PromptManagerDep = Annotated[PromptManager, Depends(get_prompt_manager_dep)]
+
+
 async def get_claim_extractor(
     settings: SettingsDep,
     model_manager: ModelManagerDep,
