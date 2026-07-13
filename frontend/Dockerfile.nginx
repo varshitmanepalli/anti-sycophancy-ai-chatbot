@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+
+# =============================================================================
+# Nginx reverse proxy — caching, compression, API + Next.js routing
+# =============================================================================
+
+FROM nginx:1.27-alpine
+
+RUN apk add --no-cache curl \
+  && mkdir -p /var/cache/nginx/next_static \
+  && chown -R nginx:nginx /var/cache/nginx
+
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+COPY nginx/templates/default.conf.template /etc/nginx/templates/default.conf.template
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://127.0.0.1/health || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

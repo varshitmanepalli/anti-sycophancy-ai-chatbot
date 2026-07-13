@@ -15,7 +15,9 @@ from app.domain.fallacies import FallacyDetectionResult
 from app.schemas.chat_pipeline import (
     ChatPipelineRequest,
     ChatPipelineResponse,
+    ReasoningItem,
     ReasoningStep,
+    StructuredReasoning,
 )
 from app.services.assumptions.detector import AssumptionDetector
 from app.services.fallacies.detector import LogicalFallacyDetector
@@ -243,12 +245,87 @@ class ChatPipeline:
     @staticmethod
     def build_response(ctx: PipelineContext) -> ChatPipelineResponse:
         """Map pipeline context to the API response schema."""
+        structured = ChatPipeline._build_structured_reasoning(ctx)
         return ChatPipelineResponse(
             response=ctx.response,
             confidence=ctx.confidence,
             category=ctx.input_category,
             reasoning_steps=ctx.reasoning_steps,
+            structured_reasoning=structured,
         )
+
+    @staticmethod
+    def _item(text: str, confidence: float = 0.5, source: str | None = None) -> ReasoningItem:
+        return ReasoningItem(
+            text=text.strip(),
+            confidence=max(0.0, min(1.0, confidence)),
+            source=source,
+        )
+
+    @classmethod
+    def _build_structured_reasoning(cls, ctx: PipelineContext) -> StructuredReasoning | None:
+        """Assemble user-facing structured reasoning from pipeline stage outputs."""
+        facts: list[ReasoningItem] = []
+        assumptions: list[ReasoningItem] = []
+        evidence: list[ReasoningItem] = []
+        counterarguments: list[ReasoningItem] = []
+        alternative_explanations: list[ReasoningItem] = []
+
+        if ctx.claims is not None:
+            for item in ctx.claims.main_claims + ctx.claims.supporting_claims:
+                facts.append(cls._item(item.text, item.confidence, item.source))
+            for item in ctx.claims.hidden_assumptions:
+                assumptions.append(cls._item(item.text, item.confidence, item.source))
+            for item in ctx.claims.evidence_provided:
+                evidence.append(cls._item(item.text, item.confidence, item.source))
+            for item in ctx.claims.unknown_information:
+                alternative_explanations.append(
+                    cls._item(item.text, item.confidence, item.source)
+                )
+
+        if ctx.assumptions is not None:
+            for issue in ctx.assumptions.unsupported_assumptions:
+                assumptions.append(cls._item(issue.text, issue.confidence))
+            for issue in (
+                *ctx.assumptions.emotional_reasoning,
+                *ctx.assumptions.confirmation_bias,
+                *ctx.assumptions.mind_reading,
+                *ctx.assumptions.overconfidence,
+            ):
+                counterarguments.append(cls._item(issue.text, issue.confidence))
+
+        if ctx.fallacies is not None:
+            for fallacy in ctx.fallacies.fallacies:
+                counterarguments.append(
+                    cls._item(fallacy.explanation, fallacy.confidence, fallacy.fallacy.value)
+                )
+
+        confidence_score = ctx.confidence
+        if confidence_score > 1.0:
+            confidence_score = confidence_score / 100.0
+
+        structured = StructuredReasoning(
+            facts=facts,
+            assumptions=assumptions,
+            evidence=evidence,
+            counterarguments=counterarguments,
+            confidence_score=max(0.0, min(1.0, confidence_score)),
+            alternative_explanations=alternative_explanations,
+        )
+
+        if not any(
+            [
+                structured.facts,
+                structured.assumptions,
+                structured.evidence,
+                structured.counterarguments,
+                structured.alternative_explanations,
+                structured.confidence_score > 0,
+            ]
+        ):
+            return None
+
+        return structured
 
     @staticmethod
     def _build_confidence_context(ctx: PipelineContext) -> str:

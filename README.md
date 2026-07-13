@@ -9,7 +9,8 @@ A production-ready reasoning engine that uses open-source Hugging Face models to
 | Backend    | Python 3.12, FastAPI, SQLAlchemy    |
 | Inference  | vLLM (production), Transformers (dev) |
 | Database   | PostgreSQL 16                       |
-| Frontend   | React 19, Next.js 15, TypeScript    |
+| Frontend   | Next.js 15, React 19, TypeScript, Tailwind CSS, shadcn/ui |
+| State      | Zustand, TanStack Query             |
 | Infra      | Docker, Docker Compose              |
 
 ## Features
@@ -64,8 +65,6 @@ ai-reasoning-engine/
 │   │   ├── memory/           # Conversation context management
 │   │   ├── database/         # SQLAlchemy ORM & repositories
 │   │   ├── training/         # SFT dataset & benchmark evaluation
-│   │   │   ├── sft/          # Conversation → Alpaca JSONL converter
-│   │   │   └── eval/         # Metrics, runner, report generation
 │   │   ├── config/           # Pydantic settings (app + training)
 │   │   ├── logging/          # Structured logging
 │   │   ├── schemas/          # API request/response DTOs
@@ -74,18 +73,29 @@ ai-reasoning-engine/
 │   ├── data/                 # Sample conversations, benchmarks, reports
 │   ├── alembic/              # Database migrations
 │   ├── tests/                # 235 unit & integration tests
-│   ├── Dockerfile
+│   ├── ARCHITECTURE.md       # Backend architecture guide
 │   └── pyproject.toml
 ├── frontend/
 │   ├── src/
-│   │   ├── app/              # App Router pages
-│   │   ├── components/       # React components
-│   │   ├── lib/              # API client
-│   │   └── types/            # TypeScript interfaces
-│   └── Dockerfile
-├── docker-compose.yml
+│   │   ├── app/              # Next.js routes only (thin pages)
+│   │   ├── features/         # Vertical feature modules (chat, auth, …)
+│   │   ├── components/       # Shared UI (ui/, layout/, feedback/, motion/)
+│   │   ├── lib/              # HTTP transport (api/), motion presets
+│   │   ├── services/         # Domain API functions (no React)
+│   │   ├── stores/           # Zustand stores (auth, chat, conversation, …)
+│   │   ├── hooks/            # Shared React hooks
+│   │   ├── types/            # Shared TypeScript types
+│   │   ├── utils/            # Pure utility functions
+│   │   ├── providers/        # Theme, React Query providers
+│   │   ├── styles/           # globals.css, design tokens
+│   │   └── config/           # env, constants, query keys
+│   ├── nginx/                # Production reverse proxy config
+│   ├── ARCHITECTURE.md       # Frontend architecture guide
+│   └── package.json
+├── docker-compose.yml        # Development stack
+├── docker-compose.prod.yml   # Production stack (nginx + standalone Next.js)
 ├── .env.example
-└── ARCHITECTURE.md
+└── ARCHITECTURE.md           # Full-stack architecture overview
 ```
 
 ## Quick Start
@@ -93,12 +103,14 @@ ai-reasoning-engine/
 ### Prerequisites
 
 - Docker & Docker Compose
+- Node.js 20+ (for local frontend dev)
 - (Optional) NVIDIA GPU + drivers for vLLM
 
 ### 1. Configure environment
 
 ```bash
 cp .env.example .env
+cp frontend/.env.example frontend/.env.local
 ```
 
 ### 2. Start all services
@@ -111,7 +123,7 @@ docker compose up --build
 |----------|----------------------------|
 | Frontend | http://localhost:3000      |
 | API      | http://localhost:8000/api  |
-| API docs | http://localhost:8000/docs |
+| API docs | http://localhost:8000/api/docs |
 | vLLM     | http://localhost:8001/v1   |
 
 ### 3. Run backend locally (without Docker)
@@ -136,6 +148,45 @@ uvicorn app.main:app --reload --app-dir src
 cd frontend
 npm install
 npm run dev
+```
+
+Open http://localhost:3000 — the chat UI connects to the backend via `/api` proxy (configured in `next.config.ts`).
+
+## Frontend Architecture
+
+The frontend uses a **feature-first SaaS structure**. See [frontend/ARCHITECTURE.md](frontend/ARCHITECTURE.md) for the full guide.
+
+| Folder | Responsibility |
+|--------|----------------|
+| `app/` | Next.js routes only — thin pages, layouts, error boundaries |
+| `features/` | Vertical slices (chat today; auth, settings tomorrow) |
+| `components/` | Shared design system (`ui/`) and app shell (`layout/`) |
+| `services/` | API layer — Axios, SSE; no React |
+| `stores/` | Global Zustand client state |
+| `hooks/` | Cross-feature React hooks |
+| `types/` | Shared TypeScript interfaces |
+| `utils/` | Pure helpers (`cn`, format, id) |
+| `providers/` | Theme + React Query wrappers |
+| `styles/` | Global CSS and design tokens |
+| `config/` | Env vars, constants, query keys |
+
+### Chat modes
+
+| Mode | API endpoint | Behavior |
+|------|-------------|----------|
+| **Chat** | `POST /api/v1/chat/stream` | Streaming SSE responses with anti-sycophancy persona |
+| **Reasoning** | `POST /api/chat` | Full pipeline with confidence score and reasoning trace panel |
+
+### Key frontend commands
+
+```bash
+cd frontend
+
+npm run dev          # Development server
+npm run build        # Production build
+npm run lint         # ESLint
+npm run format       # Prettier
+npm run typecheck    # TypeScript
 ```
 
 ## Training & Evaluation
@@ -222,11 +273,11 @@ Base URL: `http://localhost:8000/api`
 | POST | `/v1/contradictions/check` | Contradiction detection |
 | POST | `/v1/contradictions/check-and-store` | Detect and persist contradictions |
 
-Interactive docs: http://localhost:8000/docs
+Interactive docs: http://localhost:8000/api/docs
 
 ## Architecture
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for layer responsibilities, data flow, and design decisions.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for backend design and [frontend/ARCHITECTURE.md](frontend/ARCHITECTURE.md) for frontend structure.
 
 ## License
 

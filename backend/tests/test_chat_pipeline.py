@@ -104,6 +104,11 @@ async def test_chat_pipeline_returns_skeleton(pipeline_client: AsyncClient):
     assert "assumption_detection" in labels
     assert "fallacy_detection" in labels
     assert "confidence_scoring" in labels
+    assert data["structured_reasoning"] is not None
+    sr = data["structured_reasoning"]
+    assert len(sr["facts"]) >= 1
+    assert len(sr["counterarguments"]) >= 1
+    assert sr["confidence_score"] == pytest.approx(0.52)
 
 
 @pytest.mark.asyncio

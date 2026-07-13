@@ -14,10 +14,29 @@ class ChatPipelineRequest(BaseModel):
 
 
 class ReasoningStep(BaseModel):
-    """A single step in the model's reasoning trace."""
+    """Internal pipeline trace step — not for user-facing chain-of-thought display."""
 
     label: str
     content: str = ""
+
+
+class ReasoningItem(BaseModel):
+    """A single structured reasoning item returned to the client."""
+
+    text: str
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    source: str | None = None
+
+
+class StructuredReasoning(BaseModel):
+    """User-facing structured reasoning — no chain-of-thought."""
+
+    facts: list[ReasoningItem] = Field(default_factory=list)
+    assumptions: list[ReasoningItem] = Field(default_factory=list)
+    evidence: list[ReasoningItem] = Field(default_factory=list)
+    counterarguments: list[ReasoningItem] = Field(default_factory=list)
+    confidence_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    alternative_explanations: list[ReasoningItem] = Field(default_factory=list)
 
 
 class ChatPipelineResponse(BaseModel):
@@ -27,3 +46,4 @@ class ChatPipelineResponse(BaseModel):
     confidence: float = 0.0
     category: InputCategory | None = None
     reasoning_steps: list[ReasoningStep] = Field(default_factory=list)
+    structured_reasoning: StructuredReasoning | None = None

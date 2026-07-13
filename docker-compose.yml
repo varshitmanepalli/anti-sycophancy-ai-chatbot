@@ -61,16 +61,18 @@ services:
       - ./backend/src:/app/src
 
   # ---------------------------------------------------------------------------
-  # Next.js frontend
+  # Next.js frontend (development — use docker-compose.prod.yml for production)
   # ---------------------------------------------------------------------------
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000/api
+      NEXT_PUBLIC_CLIENT_API_URL: /api
+      USE_NEXT_REWRITES: "true"
     depends_on:
       - api
     volumes:
