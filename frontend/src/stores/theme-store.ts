@@ -9,7 +9,8 @@ interface ThemeState {
 }
 
 export const useThemeStore = create<ThemeState>()((set, get) => ({
-  theme: "system",
+  // Match ThemeProvider defaultTheme to avoid a sync race on mount.
+  theme: "dark",
 
   setTheme: (theme) => set({ theme }),
 

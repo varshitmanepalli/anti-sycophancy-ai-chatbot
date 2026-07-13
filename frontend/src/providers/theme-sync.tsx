@@ -6,30 +6,23 @@ import { useTheme } from "next-themes";
 import { useThemeStore } from "@/stores/theme-store";
 import type { ThemePreference } from "@/stores/types";
 
-/** Keeps Zustand theme preference in sync with next-themes. */
+/** Mirrors next-themes preference into Zustand (one-way). */
 export function ThemeStoreSync() {
-  const { theme: resolvedTheme, setTheme } = useTheme();
-  const storeTheme = useThemeStore((s) => s.theme);
+  const { theme } = useTheme();
   const setStoreTheme = useThemeStore((s) => s.setTheme);
 
   useEffect(() => {
-    if (!resolvedTheme) return;
-    const preference = resolvedTheme as ThemePreference;
-    if (preference !== storeTheme) {
+    if (!theme) return;
+    const preference = theme as ThemePreference;
+    if (useThemeStore.getState().theme !== preference) {
       setStoreTheme(preference);
     }
-  }, [resolvedTheme, setStoreTheme, storeTheme]);
-
-  useEffect(() => {
-    if (storeTheme && storeTheme !== resolvedTheme) {
-      setTheme(storeTheme);
-    }
-  }, [resolvedTheme, setTheme, storeTheme]);
+  }, [theme, setStoreTheme]);
 
   return null;
 }
 
-/** Apply theme to both Zustand and next-themes. */
+/** Apply theme preference to Zustand (callers should also update next-themes). */
 export function applyThemePreference(theme: ThemePreference): void {
   useThemeStore.getState().setTheme(theme);
 }
