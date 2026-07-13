@@ -9,6 +9,7 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, Template
 
 from app.prompts.base import PromptMessage
+from app.prompts.config_loader import get_template_content, reload_prompts_config
 from app.prompts.registry import PromptRegistry, TEMPLATES_DIR
 from app.prompts.types import PromptTemplateMeta, PromptType
 from app.prompts.variables import merge_variables
@@ -55,6 +56,15 @@ class PromptManager:
             keep_trailing_newline=True,
         )
         self._pinned_versions: dict[PromptType, str] = {}
+        self._yaml_templates: dict[tuple[PromptType, str], Template] = {}
+
+    def reload(self) -> None:
+        """Reload prompts.yml and rebuild the registry (dev hot-reload)."""
+        reload_prompts_config()
+        self._registry = PromptRegistry(self._dir)
+        self._yaml_templates.clear()
+        self._pinned_versions.clear()
+        logger.info("PromptManager reloaded from prompts.yml")
 
     # ------------------------------------------------------------------
     # Version management
@@ -151,6 +161,16 @@ class PromptManager:
     # ------------------------------------------------------------------
 
     def _load_template(self, prompt_type: PromptType, version: str) -> Template:
+        cache_key = (prompt_type, version)
+        if cache_key in self._yaml_templates:
+            return self._yaml_templates[cache_key]
+
+        yaml_content = get_template_content(prompt_type, version)
+        if yaml_content is not None:
+            template = Template(yaml_content, undefined=StrictUndefined)
+            self._yaml_templates[cache_key] = template
+            return template
+
         relative = f"{prompt_type.value}/v{version}.j2"
         return self._env.get_template(relative)
 

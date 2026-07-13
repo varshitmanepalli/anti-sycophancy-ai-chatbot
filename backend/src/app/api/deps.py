@@ -77,8 +77,13 @@ async def get_health_service(
 async def get_chat_service(
     model_manager: ModelManagerDep,
     settings: SettingsDep,
+    prompt_manager: PromptManagerDep,
 ) -> ChatService:
-    return ChatService(model_manager=model_manager, settings=settings)
+    return ChatService(
+        model_manager=model_manager,
+        settings=settings,
+        prompt_manager=prompt_manager,
+    )
 
 
 async def get_chat_pipeline(
@@ -117,6 +122,9 @@ async def get_chat_pipeline(
         assumption_detector=assumption_detector,
         fallacy_detector=fallacy_detector,
         confidence_engine=confidence_engine,
+        model_manager=model_manager,
+        prompt_manager=prompt_manager,
+        settings=settings,
     )
 
 

@@ -108,6 +108,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: Literal["json", "text"] = "json"
 
+    # Prompts — edit ``prompts/prompts.yml`` to change template text and defaults
+    prompts_file: str | None = None
+    system_prompt_version: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

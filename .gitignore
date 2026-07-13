@@ -23,5 +23,5 @@ Thumbs.db
 *.log
 
 .venv
-.cursor
+.cursor/
 backend/.venv

@@ -33,11 +33,17 @@ def test_render_system_prompt_v1(manager: PromptManager):
     assert "critical thinking" in text
 
 
-def test_render_system_prompt_v2_requires_reasoning_protocol(manager: PromptManager):
-    with pytest.raises(Exception):
-        manager.render(PromptType.SYSTEM, version="2")
-
+def test_render_system_prompt_v2_uses_default_reasoning_protocol(manager: PromptManager):
     text = manager.render(
+        PromptType.SYSTEM,
+        version="2",
+        variables={"assistant_name": "TestBot", "tone": "direct"},
+    )
+    assert "TestBot" in text
+    assert "Identify factual claims" in text
+    assert "Step-by-step" not in text
+
+    text_custom = manager.render(
         PromptType.SYSTEM,
         version="2",
         variables={
@@ -46,7 +52,7 @@ def test_render_system_prompt_v2_requires_reasoning_protocol(manager: PromptMana
             "reasoning_protocol": "Step-by-step analysis",
         },
     )
-    assert "Step-by-step analysis" in text
+    assert "Step-by-step analysis" in text_custom
 
 
 def test_render_support_agent_with_facts(manager: PromptManager):

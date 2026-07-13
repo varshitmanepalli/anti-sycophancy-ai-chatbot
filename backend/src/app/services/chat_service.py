@@ -12,6 +12,7 @@ from app.memory.context_manager import ContextManager
 from app.models.base import GenerationConfig
 from app.models.model_manager import ModelManager
 from app.prompts.anti_sycophancy import ConversationPrompt
+from app.prompts.manager import PromptManager
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.logging.setup import get_logger
 
@@ -25,6 +26,7 @@ class ChatService:
         self,
         model_manager: ModelManager,
         settings: Settings,
+        prompt_manager: PromptManager | None = None,
     ) -> None:
         self._model_manager = model_manager
         self._settings = settings
@@ -33,7 +35,11 @@ class ChatService:
             self._memory,
             max_turns=settings.max_context_turns,
         )
-        self._prompt = ConversationPrompt()
+        manager = prompt_manager or PromptManager()
+        self._prompt = ConversationPrompt(
+            manager=manager,
+            system_version=settings.system_prompt_version,
+        )
 
     async def _append_user_message_if_new(
         self,

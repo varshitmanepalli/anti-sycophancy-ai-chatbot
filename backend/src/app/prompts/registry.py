@@ -1,7 +1,7 @@
 """Version registry for prompt templates.
 
-Each prompt type has a manifest (``manifest.yaml``) in its template
-directory declaring available versions, the default, and required variables.
+Primary source: ``prompts.yml`` (all template text, defaults, and active versions).
+Fallback: per-type ``manifest.yaml`` + ``v{N}.j2`` files on disk.
 """
 
 from __future__ import annotations
@@ -10,6 +10,12 @@ from pathlib import Path
 
 import yaml
 
+from app.prompts.config_loader import (
+    get_active_version,
+    get_template_meta,
+    list_template_versions,
+    load_prompts_config,
+)
 from app.prompts.types import PromptTemplateMeta, PromptType
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -22,9 +28,15 @@ class PromptRegistry:
         self._dir = templates_dir or TEMPLATES_DIR
         self._catalog: dict[PromptType, dict[str, PromptTemplateMeta]] = {}
         self._defaults: dict[PromptType, str] = {}
+        self._config = load_prompts_config()
         self._load_all()
 
     def _load_all(self) -> None:
+        yaml_templates = self._config.get("templates", {})
+        if yaml_templates:
+            self._load_from_yaml()
+            return
+
         for prompt_type in PromptType:
             type_dir = self._dir / prompt_type.value
             if not type_dir.exists():
@@ -35,6 +47,18 @@ class PromptRegistry:
                 self._load_manifest(prompt_type, manifest_path)
             else:
                 self._discover_versions(prompt_type, type_dir)
+
+    def _load_from_yaml(self) -> None:
+        for prompt_type in PromptType:
+            versions = list_template_versions(prompt_type, self._config)
+            if not versions:
+                continue
+            self._catalog[prompt_type] = {}
+            self._defaults[prompt_type] = get_active_version(prompt_type, self._config)
+            for version in versions:
+                meta = get_template_meta(prompt_type, version, self._config)
+                if meta is not None:
+                    self._catalog[prompt_type][version] = meta
 
     def _load_manifest(self, prompt_type: PromptType, path: Path) -> None:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))

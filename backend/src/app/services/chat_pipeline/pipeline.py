@@ -1,17 +1,23 @@
-"""Chat pipeline — staged processing skeleton.
+"""Chat pipeline — staged reasoning processing.
 
 Each step mutates a shared ``PipelineContext`` and passes it to the next
-stage. Inference, confidence scoring, and reasoning extraction are stubbed
-until implemented.
+stage. Prompt assembly uses ``prompts.yml`` via ``ConversationPrompt``;
+inference uses ``ModelManager`` when available.
 """
 
 from dataclasses import dataclass, field
 
+from app.config.settings import Settings
+from app.core.exceptions import ModelInferenceError
 from app.domain.assumptions import AssumptionDetectionResult
 from app.domain.claims import ClaimExtractionResult
 from app.domain.classification import InputCategory
 from app.domain.confidence import ConfidenceResult
 from app.domain.fallacies import FallacyDetectionResult
+from app.models.base import GenerationConfig
+from app.models.model_manager import ModelManager
+from app.prompts.anti_sycophancy import ConversationPrompt
+from app.prompts.manager import PromptManager
 from app.schemas.chat_pipeline import (
     ChatPipelineRequest,
     ChatPipelineResponse,
@@ -59,12 +65,23 @@ class ChatPipeline:
         assumption_detector: AssumptionDetector | None = None,
         fallacy_detector: LogicalFallacyDetector | None = None,
         confidence_engine: ConfidenceEngine | None = None,
+        model_manager: ModelManager | None = None,
+        prompt_manager: PromptManager | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self._classifier = classifier
         self._claim_extractor = claim_extractor
         self._assumption_detector = assumption_detector
         self._fallacy_detector = fallacy_detector
         self._confidence_engine = confidence_engine
+        self._model_manager = model_manager
+        self._settings = settings
+        manager = prompt_manager or PromptManager()
+        system_version = settings.system_prompt_version if settings else None
+        self._conversation_prompt = ConversationPrompt(
+            manager=manager,
+            system_version=system_version,
+        )
 
     async def run(self, request: ChatPipelineRequest) -> ChatPipelineResponse:
         """Execute all pipeline stages and return the structured response."""
@@ -187,14 +204,12 @@ class ChatPipeline:
         return ctx
 
     async def build_prompt(self, ctx: PipelineContext) -> PipelineContext:
-        """Assemble system prompt + history + user message."""
+        """Assemble system prompt + history + user message from prompts.yml."""
         logger.debug("Pipeline[build_prompt] message_len=%d", len(ctx.message))
-        # TODO: use ConversationPrompt from app.prompts.anti_sycophancy
-        ctx.prompt_messages = [
-            {"role": "system", "content": "[placeholder] anti-sycophancy system prompt"},
-            *ctx.history,
-            {"role": "user", "content": ctx.message},
-        ]
+        ctx.prompt_messages = self._conversation_prompt.to_chat_format(
+            user_message=ctx.message,
+            history=ctx.history or None,
+        )
         return ctx
 
     async def run_inference(self, ctx: PipelineContext) -> PipelineContext:
@@ -203,8 +218,28 @@ class ChatPipeline:
             "Pipeline[run_inference] prompt_messages=%d",
             len(ctx.prompt_messages),
         )
-        # TODO: call ModelManager.generate(ctx.prompt_messages)
-        ctx.response = ""
+        if self._model_manager is None:
+            ctx.response = ""
+            return ctx
+
+        if not self._model_manager.is_loaded:
+            await self._model_manager.load()
+
+        settings = self._settings or Settings()
+        config = GenerationConfig(
+            max_tokens=settings.max_tokens,
+            temperature=settings.temperature,
+            top_p=settings.top_p,
+        )
+
+        try:
+            ctx.response = await self._model_manager.generate(ctx.prompt_messages, config)
+        except ModelInferenceError:
+            raise
+        except Exception as exc:
+            logger.exception("Pipeline inference failed")
+            raise ModelInferenceError(str(exc)) from exc
+
         return ctx
 
     async def score_confidence(self, ctx: PipelineContext) -> PipelineContext:

@@ -174,8 +174,8 @@ Streaming emits async generator tuples `(conversation_id, token, done)` consumed
 | `extract_claims` | `ClaimExtractor` | Implemented |
 | `detect_assumptions` | `AssumptionDetector` | Implemented |
 | `detect_fallacies` | `LogicalFallacyDetector` | Implemented |
-| `build_prompt` | `PromptManager` | **Partial** — placeholder system prompt |
-| `run_inference` | `ModelManager` | **Stub** — empty response; TODO full inference |
+| `build_prompt` | `ConversationPrompt` + `prompts.yml` | Implemented |
+| `run_inference` | `ModelManager` | Implemented (requires loaded model) |
 | `score_confidence` | `ConfidenceEngine` | Implemented |
 | `extract_reasoning` | Pipeline internal | Builds `StructuredReasoning` from prior stages |
 | `build_response` | Pipeline internal | Returns `ChatPipelineResponse` |
@@ -269,14 +269,26 @@ Keeping domain pure allows training scripts and tests to import business types w
 
 ## Prompts (`prompts/`)
 
-Prompt engineering is first-class and version-controlled:
+Prompt engineering is first-class and **editable without code changes** via the central file **`prompts/prompts.yml`**.
 
-- **`manager.py`** — `PromptManager` loads, selects version, renders Jinja2
-- **`registry.py`** — discovers templates from directory structure
-- **`types.py`** — `PromptType` enum (12 agent categories)
-- **`templates/`** — each agent has `v{N}.j2` + `manifest.yaml` declaring variables and metadata
+| Section in `prompts.yml` | Purpose |
+|--------------------------|---------|
+| `defaults.global` | Shared variables (`assistant_name`, `tone`, `reasoning_protocol`, …) |
+| `defaults.{type}` | Per-agent default variables |
+| `active_versions` | Which template version each agent uses (change here to roll forward/back) |
+| `templates.{type}.{version}.content` | Full Jinja2 prompt text |
 
-Independent versioning per agent (e.g. Judge v4, Support v2) allows safe prompt iteration without redeploying unrelated agents. `anti_sycophancy.py` provides legacy conversation prompt assembly used by `ChatService`.
+`PromptManager` loads template content from `prompts.yml` first; legacy `templates/{type}/v{N}.j2` + `manifest.yaml` files remain as fallback if the YAML section is empty.
+
+Supporting modules:
+
+- **`config_loader.py`** — parses `prompts.yml`, exposes defaults, active versions, template content
+- **`manager.py`** — renders templates with Jinja2; supports `reload()` for dev
+- **`registry.py`** — indexes template metadata from YAML or disk manifests
+- **`variables.py`** — merges YAML defaults with call-time overrides
+- **`anti_sycophancy.py`** — `ConversationPrompt` assembles system + history + user message
+
+To fix a bad prompt in production: edit `prompts/prompts.yml`, restart the API (or call `PromptManager.reload()` in dev). No Python redeploy required for wording changes.
 
 ---
 
