@@ -289,7 +289,18 @@ Production optimizations enabled:
 - **`optimizePackageImports`** for lucide-react, Radix, framer-motion
 - **Image formats** AVIF + WebP with remote patterns for avatars
 - **Cache-Control headers** on `/_next/static` and public assets
-- **Rewrites disabled in production** by default — nginx proxies `/api`
+- **Rewrites** — enabled for local/dev (`USE_NEXT_REWRITES` / non-prod); disabled by default behind nginx in production
+
+### Environment matrix
+
+| Environment | Entry | `/api` routing | Image |
+|-------------|-------|----------------|-------|
+| Local `npm run dev` | `:3000` | Next rewrite → `localhost:8000` | Host Node |
+| Local Compose (`Dockerfile.dev`) | `:3000` | Next rewrite (`USE_NEXT_REWRITES=true`) | Dev image + src mount |
+| Staging | nginx `:80` | nginx → `api:8000` | Standalone prod image |
+| Production | nginx (+ TLS) | nginx → `api:8000` | Standalone prod image |
+
+`NEXT_PUBLIC_*` values are **build-time**. Staging and production must rebuild when site URL or public API base changes.
 
 ### Docker
 
@@ -299,20 +310,36 @@ Production optimizations enabled:
 | `Dockerfile.dev` | Development with volume-friendly layout |
 | `Dockerfile.nginx` | Nginx 1.27 alpine with gzip and proxy cache zone |
 
-Build args pass `NEXT_PUBLIC_*` variables at image build time. Runtime `API_URL` stays internal to the container network.
+Build args pass `NEXT_PUBLIC_*` variables at image build time. Runtime `API_URL` stays internal to the container network (`http://api:8000/api`).
 
 ### Nginx (`nginx/`)
 
-Production traffic enters nginx on port 80:
+Production/staging traffic enters nginx on port 80:
 
-- **`/api/`** → FastAPI (no buffering for SSE, 120s timeout)
+- **`/api/`** → FastAPI (no buffering for SSE, long read timeouts)
 - **`/_next/static/`** → immutable 1-year cache
 - **`/_next/image`** → 7-day cache for optimized images
 - **`/`** → Next.js standalone (HTML not cached)
+- **`/health`** → frontend health for Compose / load balancers
 
 Security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy) are set at the nginx layer.
 
-Use `docker compose -f docker-compose.prod.yml up --build` from the repository root.
+### Staging vs production (frontend)
+
+| | Staging | Production |
+|--|---------|------------|
+| Compose file | `docker-compose.prod.yml` | same |
+| `NEXT_PUBLIC_SITE_URL` | `https://staging.example.com` | `https://app.example.com` |
+| TLS | Optional terminator in front of `:80` | Required |
+| Analytics | Usually off | Per product policy |
+
+Commands (repository root):
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env up --build -d
+```
+
+Operator runbooks: [../README.md](../README.md), [README.md](README.md).
 
 ---
 
@@ -372,6 +399,8 @@ Current CI gate: `npm run typecheck`, `npm run lint`, `npm run build`.
 
 | Document | Contents |
 |----------|----------|
-| [Root ARCHITECTURE.md](../ARCHITECTURE.md) | Full-stack overview, chat modes, deployment |
-| [Backend ARCHITECTURE.md](../backend/ARCHITECTURE.md) | API routes, pipeline, LLM adapters |
-| [README.md](../README.md) | Setup commands and port map |
+| [Root README.md](../README.md) | Full local / staging / production + database runbook |
+| [Frontend README.md](README.md) | Frontend setup, env matrix, Docker Hub notes |
+| [Root ARCHITECTURE.md](../ARCHITECTURE.md) | Full-stack overview, environments, structure map |
+| [Backend ARCHITECTURE.md](../backend/ARCHITECTURE.md) | API routes, pipeline, LLM adapters, DB schema |
+| [Backend README.md](../backend/README.md) | Backend migrations and API bring-up |

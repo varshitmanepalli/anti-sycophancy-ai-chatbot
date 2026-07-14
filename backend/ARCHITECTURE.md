@@ -312,7 +312,17 @@ Standard chat currently uses `InMemoryStore`. Production persistence requires wi
 | ORM | `models/conversation.py`, `models/memory.py` |
 | Repositories | `conversation_repository.py`, `memory_repository.py`, `user_fact_repository.py`, `user_opinion_repository.py`, `user_goal_repository.py`, `contradiction_repository.py`, `mappers.py` |
 
-Alembic migrations live in `backend/alembic/`. Initial migration `001_memory_schema.py` creates memory-related tables. Conversation ORM models exist; full chat history integration is ongoing.
+Alembic migrations live in `backend/alembic/`. Initial migration `001_memory_schema.py` creates:
+
+- `conversations`, `messages`
+- `user_facts`, `user_opinions`, `user_goals`
+- `contradictions`
+
+**Local setup:** start Postgres (`docker compose up -d db`), set `DATABASE_URL`, run `alembic upgrade head` from `backend/`.
+
+**Staging / production:** run the same alembic command inside the `api` container after Compose brings `db` to healthy. Do not rely on auto-create from ORM metadata in deployed environments — migrations are the source of truth.
+
+Conversation ORM models exist; full chat history integration into `ChatService` / `ChatPipeline.load_context` is ongoing.
 
 ---
 
@@ -441,16 +451,63 @@ Tests favor deterministic LLM responses over live inference so CI does not requi
 
 ## Docker and deployment
 
-**`backend/Dockerfile`** — Python 3.12 slim image, installs `requirements.txt`, copies `src/`, runs uvicorn on port 8000.
+### Container image (`backend/Dockerfile`)
 
-In **production Compose** (`docker-compose.prod.yml`), the API service:
+- Base: `python:3.12-slim`
+- Installs build deps for asyncpg (`libpq-dev`, `build-essential`)
+- `PIP` installs `requirements.txt`
+- Copies `src/`, `alembic/`, `alembic.ini`
+- `PYTHONPATH=/app/src`
+- CMD: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
 
-- Exposes port 8000 **internally only** (nginx proxies public `/api/`)
-- Uses JSON log format and `DEBUG=false`
-- Depends on PostgreSQL health
-- Health check: Python urllib request to `/health`
+### Local / development (`docker-compose.yml`)
 
-Development Compose mounts `./backend/src` for hot reload.
+| Aspect | Behavior |
+|--------|----------|
+| Service name | `api` |
+| Volume | `./backend/src` → `/app/src` (edit code on host) |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@db:5432/chatbot` |
+| `VLLM_BASE_URL` | `http://vllm:8001/v1` (only if `vllm` service is up) |
+| Host port | `8000:8000` |
+| Depends on | healthy `db` |
+
+Migrate after DB is ready:
+
+```bash
+docker compose exec api alembic upgrade head
+```
+
+### Staging and production (`docker-compose.prod.yml`)
+
+| Aspect | Behavior |
+|--------|----------|
+| Publish | Internal `expose: 8000` only — nginx fronts `/api/` |
+| `DEBUG` | `false` |
+| `LOG_FORMAT` | `json` |
+| `DATABASE_URL` | Built from `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` |
+| Healthcheck | urllib GET `http://127.0.0.1:8000/health` |
+| LLM | Via `VLLM_BASE_URL` env (no vLLM service in this Compose file) |
+
+Deploy pattern (repository root):
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env up --build -d
+docker compose -f docker-compose.prod.yml exec api alembic upgrade head
+```
+
+**Staging** uses the same Compose file with different secrets, `CORS_ORIGINS`, and public URLs. **Production** uses vault-managed `POSTGRES_PASSWORD`, HTTPS in front of nginx, and scheduled `pg_dump` backups.
+
+### Database deployment concerns
+
+| Topic | Detail |
+|-------|--------|
+| Engine | PostgreSQL 16 (`postgres:16-alpine` in Compose) |
+| Migrations | Alembic; `env.py` loads URL from Settings |
+| Initial revision | `001_memory_schema` — conversations, messages, memory tables |
+| Chat path today | Live chat still leans on in-memory store; repositories exist for memory APIs |
+| Backups | `pg_dump` against `db` service or managed Postgres |
+
+Operational runbooks (local hybrid, staging TLS, registry push): [../README.md](../README.md) and [README.md](README.md).
 
 ---
 
@@ -470,6 +527,8 @@ Development Compose mounts `./backend/src` for hot reload.
 
 | Document | Contents |
 |----------|----------|
-| [Root ARCHITECTURE.md](../ARCHITECTURE.md) | Full-stack overview, chat modes, nginx deployment |
+| [Root README.md](../README.md) | Full local / staging / production + database runbook |
+| [Backend README.md](README.md) | Backend setup, migrations, Docker commands |
+| [Root ARCHITECTURE.md](../ARCHITECTURE.md) | Full-stack overview, environments diagram |
 | [Frontend ARCHITECTURE.md](../frontend/ARCHITECTURE.md) | Client stores, streaming, production frontend |
-| [README.md](../README.md) | Quick start and feature summary |
+| [Frontend README.md](../frontend/README.md) | Frontend env and deploy steps |

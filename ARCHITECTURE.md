@@ -161,22 +161,135 @@ See [frontend/ARCHITECTURE.md](frontend/ARCHITECTURE.md) for the full dependency
 
 ---
 
+## Monorepo structure (structure map)
+
+```
+anti-sycophancy-ai-chatbot/
+├── backend/                         # FastAPI application + offline training CLIs
+│   ├── src/app/                     # Import package `app` (PYTHONPATH=src)
+│   │   ├── api/                     # Routers + deps composition root
+│   │   ├── services/                # Use cases / engines / parsers
+│   │   ├── domain/                  # Pure business types & ports
+│   │   ├── models/                  # LLM adapters (vLLM, Transformers)
+│   │   ├── database/                # ORM, sessions, repositories
+│   │   ├── prompts/                 # PromptManager + prompts.yml
+│   │   ├── memory/                  # Conversation context helpers
+│   │   ├── training/                # SFT + eval (offline)
+│   │   ├── schemas/                 # Pydantic HTTP DTOs
+│   │   ├── config/                  # Settings
+│   │   ├── logging/                 # Structured logging
+│   │   └── core/                    # Lifespan, security, middleware
+│   ├── alembic/                     # Migrations (schema source of truth for Postgres)
+│   ├── scripts/                     # generate_sft_dataset, run_eval, export_sft_from_db
+│   ├── tests/
+│   ├── Dockerfile
+│   ├── README.md
+│   └── ARCHITECTURE.md
+├── frontend/                        # Next.js 15 App Router client
+│   ├── src/app/                     # Routes, layouts, error boundaries only
+│   ├── src/features/                # Vertical slices (chat, auth, dashboard, …)
+│   ├── src/components/              # Shared ui / layout / feedback / motion
+│   ├── src/services/api/            # Domain HTTP functions
+│   ├── src/lib/api/                 # Axios, SSE, auth refresh, retry
+│   ├── src/stores/                  # Zustand
+│   ├── nginx/                       # Prod reverse-proxy templates
+│   ├── Dockerfile / Dockerfile.dev / Dockerfile.nginx
+│   ├── README.md
+│   └── ARCHITECTURE.md
+├── docker-compose.yml               # Local / developer topology
+├── docker-compose.prod.yml          # Staging + production topology
+├── .env.example
+├── README.md                        # Setup & ops runbook
+└── ARCHITECTURE.md                  # This file
+```
+
+**Boundary rules**
+
+| From | May depend on | Must not depend on |
+|------|---------------|--------------------|
+| Backend `domain/` | stdlib / typing | FastAPI, SQLAlchemy, vLLM |
+| Backend `services/` | domain, ports, prompts | HTTP routers |
+| Backend `api/` | services, schemas, deps | frontend |
+| Frontend `features/` | shared `components`, `services`, `stores` | other features’ internals |
+| Frontend `app/` | feature public exports | raw Axios / business rules |
+
+---
+
 ## Infrastructure and deployment
+
+Environments share the **same images and Compose mental model**, differing mainly by secrets, hostnames, TLS, and whether nginx sits in front.
+
+| Environment | Compose file | Public entry | API routing | Logging | Persistence |
+|-------------|--------------|--------------|-------------|---------|-------------|
+| **Local (Docker)** | `docker-compose.yml` | `:3000` frontend, `:8000` API | Next.js rewrites (`USE_NEXT_REWRITES=true`) | `LOG_FORMAT=text` | named volume `pgdata` |
+| **Local (hybrid)** | `db` only (+ host processes) | host ports | Next rewrites → `localhost:8000` | text | Docker or host Postgres |
+| **Staging** | `docker-compose.prod.yml` | nginx `:80` (+ optional TLS terminator) | nginx `/api/` → api | `LOG_FORMAT=json` | dedicated volume / DB |
+| **Production** | `docker-compose.prod.yml` | nginx (+ TLS) | nginx `/api/` → api | JSON, `DEBUG=false` | backed-up volume / managed Postgres |
+
+```mermaid
+flowchart TB
+  subgraph localDev["Local docker-compose.yml"]
+    Browser1[Browser]
+    FE1[frontend :3000 Dockerfile.dev]
+    API1[api :8000]
+    DB1[(db :5432)]
+    VLLM1[vllm :8001 optional GPU]
+    Browser1 -->|/ and /api rewrite| FE1
+    FE1 -->|rewrite /api| API1
+    API1 --> DB1
+    API1 -.-> VLLM1
+  end
+
+  subgraph stagingProd["Staging / Production docker-compose.prod.yml"]
+    Browser2[Browser]
+    NGX[nginx :80]
+    FE2[frontend :3000 standalone]
+    API2[api :8000 internal]
+    DB2[(db internal)]
+    LLM2[External or co-located LLM]
+    Browser2 --> NGX
+    NGX -->|"/api/*"| API2
+    NGX -->|"/"| FE2
+    API2 --> DB2
+    API2 --> LLM2
+  end
+```
 
 ### Development (`docker-compose.yml`)
 
-Development Compose runs PostgreSQL, optional vLLM, the FastAPI backend with a **source volume mount**, and the frontend via `Dockerfile.dev` with hot reload. The frontend sets `USE_NEXT_REWRITES=true` so Next.js proxies `/api/*` to the backend without nginx.
+Development Compose runs:
+
+| Service | Image / build | Notes |
+|---------|---------------|-------|
+| `db` | `postgres:16-alpine` | User/password/db `postgres`/`postgres`/`chatbot`; healthcheck `pg_isready` |
+| `vllm` | `vllm/vllm-openai:latest` | **GPU required**; omit if `nvidia-container-cli` reports no adapters |
+| `api` | `backend/Dockerfile` | Mounts `./backend/src`; waits for healthy `db` |
+| `frontend` | `frontend/Dockerfile.dev` | Mounts `./frontend/src`; `USE_NEXT_REWRITES=true` |
+
+Recommended no-GPU command: `docker compose up --build db api frontend`.
+
+### Staging (same file as production)
+
+Staging is an **instance** of `docker-compose.prod.yml` with:
+
+- Distinct `POSTGRES_PASSWORD`, hostname (`NGINX_SERVER_NAME`), and `CORS_ORIGINS`
+- `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_API_URL` pointing at the staging origin
+- Optional smaller model or shared inference URL via `VLLM_BASE_URL`
+- Migrations: `docker compose -f docker-compose.prod.yml exec api alembic upgrade head`
+- Prefer synthetic data; still take volume backups before schema experiments
+
+Staging should validate SSE through nginx (`proxy_buffering off`) before production promotion.
 
 ### Production (`docker-compose.prod.yml`)
 
 Production Compose runs four services:
 
-1. **db** — PostgreSQL 16 with persistent volume; requires `POSTGRES_PASSWORD`
+1. **db** — PostgreSQL 16 with persistent volume; **`POSTGRES_PASSWORD` required**
 2. **api** — backend image; internal port 8000; JSON logging; health check on `/health`
 3. **frontend** — multi-stage standalone Next.js build; internal port 3000; `USE_NEXT_REWRITES=false`
-4. **nginx** — public port 80; reverse proxy, gzip, static asset caching, SSE-friendly API proxy
+4. **nginx** — public port `${NGINX_HTTP_PORT:-80}`; reverse proxy, gzip, static asset caching, SSE-friendly API proxy
 
-Build-time frontend variables (`NEXT_PUBLIC_CLIENT_API_URL=/api`, `NEXT_PUBLIC_SITE_URL`, etc.) are passed as Docker build args. Runtime server variables (`API_URL=http://api:8000/api`) stay inside the container network.
+Build-time frontend variables (`NEXT_PUBLIC_CLIENT_API_URL=/api`, `NEXT_PUBLIC_SITE_URL`, etc.) are passed as Docker **build args**. Changing them requires an image rebuild. Runtime server variables (`API_URL=http://api:8000/api`) stay inside the container network.
 
 Nginx routing (see `frontend/nginx/templates/default.conf.template`):
 
@@ -184,6 +297,24 @@ Nginx routing (see `frontend/nginx/templates/default.conf.template`):
 - `/_next/static/` → cached 365 days (immutable)
 - `/_next/image` → image optimization cache
 - `/` → Next.js (no HTML cache)
+
+**Database lifecycle in deployed environments**
+
+1. Start stack (`up --build -d`) so `db` becomes healthy  
+2. Run `alembic upgrade head` inside `api`  
+3. Confirm `/api/ready`  
+4. Schedule `pg_dump` backups of the `pgdata` volume / managed instance  
+
+Prod Compose does not publish Postgres ports; administer via `exec` into `db` or a bastion.
+
+**Inference in staging/prod**
+
+`docker-compose.prod.yml` does not define `vllm`. Operators either:
+
+- Run vLLM on a GPU node and set `VLLM_BASE_URL`, or  
+- Point `VLLM_BASE_URL` at a managed OpenAI-compatible endpoint  
+
+See root [README.md](README.md) for step-by-step local, staging, and production runbooks.
 
 ---
 
@@ -254,6 +385,8 @@ These items are intentional stubs or planned work documented here so architects 
 
 | Document | Contents |
 |----------|----------|
-| [README.md](README.md) | Quick start, feature list, port map |
+| [README.md](README.md) | Local / staging / production setup, database, LLM options, troubleshooting |
+| [backend/README.md](backend/README.md) | Backend setup, migrations, Docker |
+| [frontend/README.md](frontend/README.md) | Frontend setup, env matrix, nginx deploy |
 | [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md) | Backend layers, API catalog, pipeline stages, DI, training |
 | [frontend/ARCHITECTURE.md](frontend/ARCHITECTURE.md) | Feature modules, stores, streaming, Docker, nginx, loading UX |
