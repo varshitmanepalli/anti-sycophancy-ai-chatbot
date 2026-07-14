@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useChatStore, useConversationStore } from "@/stores";
@@ -22,10 +22,10 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const conversations = useConversationStore((s) => s.conversations);
   const activeConversationId = useConversationStore((s) => s.activeConversationId);
   const setActiveConversation = useConversationStore((s) => s.setActiveConversation);
-  const createConversation = useConversationStore((s) => s.createConversation);
   const chatMode = useChatStore((s) => s.chatMode);
   const { isBusy } = useSendMessage();
   const [draftMessage, setDraftMessage] = useState<string | undefined>();
+  const creatingRef = useRef(false);
 
   const resolvedId = conversationId ?? activeConversationId;
   const conversation = resolvedId ? conversations[resolvedId] : null;
@@ -37,11 +37,12 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   }, [conversationId, setActiveConversation]);
 
   useEffect(() => {
-    if (!resolvedId && !conversationId) {
-      const id = createConversation(chatMode);
-      router.replace(`/c/${id}`);
-    }
-  }, [resolvedId, conversationId, createConversation, chatMode, router]);
+    if (creatingRef.current) return;
+    if (resolvedId || conversationId) return;
+    creatingRef.current = true;
+    const id = useConversationStore.getState().createConversation(chatMode);
+    router.replace(`/c/${id}`);
+  }, [resolvedId, conversationId, chatMode, router]);
 
   if (!resolvedId || !conversation) {
     return <ChatSkeleton />;
@@ -62,9 +63,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             isGenerating={isGenerating}
           />
         ) : (
-          <EmptyState
-            onSelectSuggestion={(text) => setDraftMessage(text)}
-          />
+          <EmptyState onSelectSuggestion={(text) => setDraftMessage(text)} />
         )}
       </div>
 

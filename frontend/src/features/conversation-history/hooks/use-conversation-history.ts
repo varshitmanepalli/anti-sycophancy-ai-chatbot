@@ -8,12 +8,33 @@ import { useConversationStore } from "@/stores";
 import { filterConversations, PAGE_SIZE } from "../utils/filters";
 import { groupConversationsByDate } from "../utils/group-by-date";
 
+function sortConversations(
+  conversations: ReturnType<typeof useConversationStore.getState>["conversations"],
+) {
+  return Object.values(conversations).sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    if (a.pinned && b.pinned) {
+      const aPin = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+      const bPin = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+      if (aPin !== bPin) return bPin - aPin;
+    }
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
+}
+
 /** Search, filter, paginate, and group conversations for the history list. */
 export function useConversationHistory() {
-  const conversations = useConversationStore((s) => s.getConversationList());
+  // Select the map (stable reference) — never call getConversationList() in the
+  // selector; it returns a new array every time and causes infinite re-renders.
+  const conversationsMap = useConversationStore((s) => s.conversations);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ConversationFilter>("all");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  const conversations = useMemo(
+    () => sortConversations(conversationsMap),
+    [conversationsMap],
+  );
 
   const filtered = useMemo(
     () => filterConversations(conversations, query, filter),

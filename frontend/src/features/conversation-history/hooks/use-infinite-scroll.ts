@@ -15,14 +15,20 @@ export function useInfiniteScroll({
   rootMargin = "120px",
 }: UseInfiniteScrollOptions) {
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const onLoadMoreRef = useRef(onLoadMore);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+  }, [onLoadMore]);
 
   const loadMore = useCallback(() => {
     if (!hasMore || isLoading) return;
     setIsLoading(true);
-    onLoadMore();
-    setIsLoading(false);
-  }, [hasMore, isLoading, onLoadMore]);
+    onLoadMoreRef.current();
+    // Defer clearing so rapid IntersectionObserver callbacks cannot nest updates.
+    queueMicrotask(() => setIsLoading(false));
+  }, [hasMore, isLoading]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;

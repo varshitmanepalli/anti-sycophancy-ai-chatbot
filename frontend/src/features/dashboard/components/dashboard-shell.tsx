@@ -26,32 +26,42 @@ export function DashboardShell({ children, headerTitle }: DashboardShellProps) {
 
   const closeSidebar = useCallback(() => {
     setSheetOpen(false);
-    setSidebarOpen(false);
+    if (useChatStore.getState().isSidebarOpen) {
+      setSidebarOpen(false);
+    }
   }, [setSidebarOpen]);
 
   const openSidebar = useCallback(() => {
     setSheetOpen(true);
-    setSidebarOpen(true);
+    if (!useChatStore.getState().isSidebarOpen) {
+      setSidebarOpen(true);
+    }
   }, [setSidebarOpen]);
 
+  const handleSwipeLeft = useCallback(() => {
+    if (sheetOpen || useChatStore.getState().isSidebarOpen) {
+      closeSidebar();
+    }
+  }, [sheetOpen, closeSidebar]);
+
   useEffect(() => {
+    // Desktop: sidebar open in store. Mobile: use sheet state only — do not keep
+    // flipping isSidebarOpen or Radix onOpenChange will fight the media query.
     if (!isMobile) {
-      setSidebarOpen(true);
-    } else {
-      setSidebarOpen(false);
+      setSheetOpen(false);
+      if (!useChatStore.getState().isSidebarOpen) {
+        setSidebarOpen(true);
+      }
     }
   }, [isMobile, setSidebarOpen]);
 
   useSwipeEdge({
     enabled: isMobile,
     onSwipeRight: openSidebar,
-    onSwipeLeft: () => {
-      if (sheetOpen || isSidebarOpen) closeSidebar();
-    },
+    onSwipeLeft: handleSwipeLeft,
   });
 
   const showDesktopSidebar = !isMobile && isSidebarOpen;
-  const sidebarOpen = sheetOpen || isSidebarOpen;
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background pt-safe">
@@ -63,11 +73,8 @@ export function DashboardShell({ children, headerTitle }: DashboardShellProps) {
 
       {isMobile && (
         <AnimatedSheet
-          open={sidebarOpen}
-          onOpenChange={(open) => {
-            setSheetOpen(open);
-            setSidebarOpen(open);
-          }}
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
           side="left"
           className="w-[min(20rem,85vw)]"
           showClose={false}

@@ -32,7 +32,9 @@ export function ReasoningPanel({ conversationId }: ReasoningPanelProps) {
   const toggleExpanded = useReasoningPanelStore((s) => s.toggleExpanded);
 
   useEffect(() => {
-    if (!useReasoningPanelStore.getState().expandedByConversation[conversationId]) {
+    // Only set a default when this conversation has never been toggled.
+    // Checking `!value` is wrong: false means "collapsed" and would re-set forever.
+    if (useReasoningPanelStore.getState().expandedByConversation[conversationId] === undefined) {
       setExpanded(conversationId, !isMobile);
     }
   }, [conversationId, isMobile, setExpanded]);

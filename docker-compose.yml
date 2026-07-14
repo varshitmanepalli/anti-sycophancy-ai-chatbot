@@ -70,8 +70,11 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # Browser-facing absolute URL (optional; client uses /api via rewrites)
       NEXT_PUBLIC_API_URL: http://localhost:8000/api
       NEXT_PUBLIC_CLIENT_API_URL: /api
+      # Server-side rewrite target inside the Compose network (NOT localhost)
+      API_URL: http://api:8000/api
       USE_NEXT_REWRITES: "true"
     depends_on:
       - api

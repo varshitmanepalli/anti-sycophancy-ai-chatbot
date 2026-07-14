@@ -13,7 +13,7 @@ interface UseFeedbackOptions {
 
 /** Submit and track feedback for a single message. */
 export function useFeedback({ messageId, conversationId }: UseFeedbackOptions) {
-  const existing = useFeedbackStore((s) => s.getFeedback(messageId));
+  const existing = useFeedbackStore((s) => s.byMessageId[messageId] ?? null);
   const submitToStore = useFeedbackStore((s) => s.submitFeedback);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
